@@ -16,17 +16,6 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 import _pickle
 
-
-# Load Model Old Approach
-
-# # Load Crop Recommender model
-# with open("./models/CropRecommender.pkl", "rb") as crop_recommender_file:
-#     crop_recommender_model = pickle.load(crop_recommender_file)
-
-# # Load Plant Disease Detection model
-# plant_disease_model = load_model("./models/Plant_Disease.hdf5")
-
-
 # Load Crop Recommender model
 try:
     with open("./models/CropRecommender.pkl", "rb") as crop_recommender_pickle:
@@ -47,30 +36,20 @@ def import_and_predict(image_data, model):
     return result
 
 # Function to predict crop yield
-def yield_prediction(input_list_yield):
-    one_hot_encoder = {}
-    with open("./models/OneHotEncoder.pkl", "rb") as ohe_pickle:
-        one_hot_encoder = pickle.load(ohe_pickle)
+yield_model = pickle.load(open('models\dtr.pkl', 'rb'))
+yield_preprocessor = pickle.load(open('models\preprocessor.pkl', 'rb'))
 
-    with open("./models/classifier.pkl", "rb") as classifier_pickle:
-        model = pickle.load(classifier_pickle)
+def predict_yield(year, rain_mm, pesticides, temp, area, crop):
+    # Create an array of input features
+    features = np.array([[year, rain_mm, pesticides, temp, area, crop]], dtype=object)
 
-    with open("./models/list_mapping.pkl", "rb") as encodings_pickle:
-        encodings = pickle.load(encodings_pickle)
+    # Transform features using the preprocessor
+    transformed_features = yield_preprocessor.transform(features)
 
-    input_array_df = pd.DataFrame(input_list_yield).T
-    columns_to_drop = [0, 1]
-    one_hot_encoded_feature = one_hot_encoder.transform(input_array_df[columns_to_drop]).toarray()
-    df_encoded = pd.DataFrame(one_hot_encoded_feature)
-    df_final = pd.concat([df_encoded, input_array_df.drop(columns_to_drop, axis=1)], axis=1)
+    # Make the prediction
+    predicted_yield = yield_model.predict(transformed_features).reshape(1, -1)
 
-    X = df_final.values
-    X[0, 680] = encodings[0][X[0, 680]]
-    X[0, 681] = encodings[1][X[0, 681]]
-
-    prediction = model.predict(X.reshape(1, -1))
-    prediction = float(prediction)
-    return prediction
+    return predicted_yield[0]
 
 # Function to convert image to base64 bytes
 def img_to_bytes(img_path):
@@ -91,7 +70,7 @@ def main():
         background: url("https://plasticseurope.org/wp-content/uploads/2021/10/5.6._aaheader.png");
         background-size: cover;
     }
-   .sidebar .sidebar-content {
+    .sidebar .sidebar-content {
         background: url("https://plasticseurope.org/wp-content/uploads/2021/10/5.6._aaheader.png")
     }
     </style>
@@ -276,88 +255,51 @@ def main():
         st.markdown(text.format(bgcolor, fontcolor), unsafe_allow_html=True)
 
         st.markdown(
-            """
-        <style>
-        .sidebar .sidebar-content {
-            background-image: linear-gradient(#3CB371,#3CB391);
-            color: white;
-        }
-        </style>
-        """,
-            unsafe_allow_html=True,
-        )
+    """
+    <style>
+    .sidebar .sidebar-content {
+        background-image: linear-gradient(#3CB371,#3CB391);
+        color: white;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-        state_selection = st.sidebar.selectbox(
-            "Select Your State",
-            ("Andaman and Nicobar Islands","Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chandigarh","Chhattisgarh","Dadra and Nagar Haveli","Goa","Gujarat","Haryana","Himachal Pradesh","Jammu and Kashmir ","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Puducherry","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana ","Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
-            ),
-        )
+        st.sidebar.header('Crop Yield Prediction')
 
-        district_selection = st.sidebar.selectbox(
-            "Select Your District",
-            ("NICOBARS","NORTH AND MIDDLE ANDAMAN","SOUTH ANDAMANS","ANANTAPUR","CHITTOOR","EAST GODAVARI","GUNTUR","KADAPA","KRISHNA","KURNOOL","PRAKASAM","SPSR NELLORE","SRIKAKULAM","VISAKHAPATANAM","VIZIANAGARAM","WEST GODAVARI","ANJAW","CHANGLANG","DIBANG VALLEY","EAST KAMENG","EAST SIANG","KURUNG KUMEY","LOHIT","LONGDING","LOWER DIBANG VALLEY","LOWER SUBANSIRI","NAMSAI","PAPUM PARE","TAWANG","TIRAP","UPPER SIANG","UPPER SUBANSIRI","WEST KAMENG","WEST SIANG","BAKSA","BARPETA","BONGAIGAON","CACHAR","CHIRANG","DARRANG","DHEMAJI","DHUBRI","DIBRUGARH","DIMA HASAO","GOALPARA","GOLAGHAT","HAILAKANDI","JORHAT","KAMRUP","KAMRUP METRO","KARBI ANGLONG","KARIMGANJ","KOKRAJHAR","LAKHIMPUR","MARIGAON","NAGAON","NALBARI","SIVASAGAR","SONITPUR","TINSUKIA","UDALGURI","ARARIA","ARWAL","AURANGABAD","BANKA","BEGUSARAI","BHAGALPUR","BHOJPUR","BUXAR","DARBHANGA","GAYA","GOPALGANJ","JAMUI","JEHANABAD","KAIMUR (BHABUA)","KATIHAR","KHAGARIA","KISHANGANJ","LAKHISARAI","MADHEPURA","MADHUBANI","MUNGER","MUZAFFARPUR","NALANDA","NAWADA","PASHCHIM CHAMPARAN","PATNA","PURBI CHAMPARAN","PURNIA","ROHTAS","SAHARSA","SAMASTIPUR","SARAN","SHEIKHPURA","SHEOHAR","SITAMARHI","SIWAN","SUPAUL","VAISHALI","CHANDIGARH","BALOD","BALODA BAZAR","BALRAMPUR","BASTAR","BEMETARA","BIJAPUR","BILASPUR","DANTEWADA","DHAMTARI","DURG","GARIYABAND","JANJGIR-CHAMPA","JASHPUR","KABIRDHAM","KANKER","KONDAGAON","KORBA","KOREA","MAHASAMUND","MUNGELI","NARAYANPUR","RAIGARH","RAIPUR","RAJNANDGAON","SUKMA","SURAJPUR","SURGUJA","DADRA AND NAGAR HAVELI","NORTH GOA","SOUTH GOA","AHMADABAD","AMRELI","ANAND","BANAS KANTHA","BHARUCH","BHAVNAGAR","DANG","DOHAD","GANDHINAGAR","JAMNAGAR","JUNAGADH","KACHCHH","KHEDA","MAHESANA","NARMADA","NAVSARI","PANCH MAHALS","PATAN","PORBANDAR","RAJKOT","SABAR KANTHA","SURAT","SURENDRANAGAR","TAPI","VADODARA","VALSAD","AMBALA","BHIWANI","FARIDABAD","FATEHABAD","GURGAON","HISAR","JHAJJAR","JIND","KAITHAL","KARNAL","KURUKSHETRA","MAHENDRAGARH","MEWAT","PALWAL","PANCHKULA","PANIPAT","REWARI","ROHTAK","SIRSA","SONIPAT","YAMUNANAGAR","CHAMBA","HAMIRPUR","KANGRA","KINNAUR","KULLU","LAHUL AND SPITI","MANDI","SHIMLA","SIRMAUR","SOLAN","UNA","ANANTNAG","BADGAM","BANDIPORA","BARAMULLA","DODA","GANDERBAL","JAMMU","KARGIL","KATHUA","KISHTWAR","KULGAM","KUPWARA","LEH LADAKH","POONCH","PULWAMA","RAJAURI","RAMBAN","REASI","SAMBA","SHOPIAN","SRINAGAR","UDHAMPUR","BOKARO","CHATRA","DEOGHAR","DHANBAD","DUMKA","EAST SINGHBUM","GARHWA","GIRIDIH","GODDA","GUMLA","HAZARIBAGH","JAMTARA","KHUNTI","KODERMA","LATEHAR","LOHARDAGA","PAKUR","PALAMU","RAMGARH","RANCHI","SAHEBGANJ","SARAIKELA KHARSAWAN","SIMDEGA","WEST SINGHBHUM","BAGALKOT","BANGALORE RURAL","BELGAUM","BELLARY","BENGALURU URBAN","BIDAR","CHAMARAJANAGAR","CHIKBALLAPUR","CHIKMAGALUR","CHITRADURGA","DAKSHIN KANNAD","DAVANGERE","DHARWAD","GADAG","GULBARGA","HASSAN","HAVERI","KODAGU","KOLAR","KOPPAL","MANDYA","MYSORE","RAICHUR","RAMANAGARA","SHIMOGA","TUMKUR","UDUPI","UTTAR KANNAD","YADGIR","ALAPPUZHA","ERNAKULAM","IDUKKI","KANNUR","KASARAGOD","KOLLAM","KOTTAYAM","KOZHIKODE","MALAPPURAM","PALAKKAD","PATHANAMTHITTA","THIRUVANANTHAPURAM","THRISSUR","WAYANAD","AGAR MALWA","ALIRAJPUR","ANUPPUR","ASHOKNAGAR","BALAGHAT","BARWANI","BETUL","BHIND","BHOPAL","BURHANPUR","CHHATARPUR","CHHINDWARA","DAMOH","DATIA","DEWAS","DHAR","DINDORI","GUNA","GWALIOR","HARDA","HOSHANGABAD","INDORE","JABALPUR","JHABUA","KATNI","KHANDWA","KHARGONE","MANDLA","MANDSAUR","MORENA","NARSINGHPUR","NEEMUCH","PANNA","RAISEN","RAJGARH","RATLAM","REWA","SAGAR","SATNA","SEHORE","SEONI","SHAHDOL","SHAJAPUR","SHEOPUR","SHIVPURI","SIDHI","SINGRAULI","TIKAMGARH","UJJAIN","UMARIA","VIDISHA","AHMEDNAGAR","AKOLA","AMRAVATI","BEED","BHANDARA","BULDHANA","CHANDRAPUR","DHULE","GADCHIROLI","GONDIA","HINGOLI","JALGAON","JALNA","KOLHAPUR","LATUR","MUMBAI","NAGPUR","NANDED","NANDURBAR","NASHIK","OSMANABAD","PALGHAR","PARBHANI","PUNE","RAIGAD","RATNAGIRI","SANGLI","SATARA","SINDHUDURG","SOLAPUR","THANE","WARDHA","WASHIM","YAVATMAL","BISHNUPUR","CHANDEL","CHURACHANDPUR","IMPHAL EAST","IMPHAL WEST","SENAPATI","TAMENGLONG","THOUBAL","UKHRUL","EAST GARO HILLS","EAST JAINTIA HILLS","EAST KHASI HILLS","NORTH GARO HILLS","RI BHOI","SOUTH GARO HILLS","SOUTH WEST GARO HILLS","SOUTH WEST KHASI HILLS","WEST GARO HILLS","WEST JAINTIA HILLS","WEST KHASI HILLS","AIZAWL","CHAMPHAI","KOLASIB","LAWNGTLAI","LUNGLEI","MAMIT","SAIHA","SERCHHIP","DIMAPUR","KIPHIRE","KOHIMA","LONGLENG","MOKOKCHUNG","MON","PEREN","PHEK","TUENSANG","WOKHA","ZUNHEBOTO","ANUGUL","BALANGIR","BALESHWAR","BARGARH","BHADRAK","BOUDH","CUTTACK","DEOGARH","DHENKANAL","GAJAPATI","GANJAM","JAGATSINGHAPUR","JAJAPUR","JHARSUGUDA","KALAHANDI","KANDHAMAL","KENDRAPARA","KENDUJHAR","KHORDHA","KORAPUT","MALKANGIRI","MAYURBHANJ","NABARANGPUR","NAYAGARH","NUAPADA","PURI","RAYAGADA","SAMBALPUR","SONEPUR","SUNDARGARH","KARAIKAL","MAHE","PONDICHERRY","YANAM","AMRITSAR","BARNALA","BATHINDA","FARIDKOT","FATEHGARH SAHIB","FAZILKA","FIROZEPUR","GURDASPUR","HOSHIARPUR","JALANDHAR","KAPURTHALA","LUDHIANA","MANSA","MOGA","MUKTSAR","NAWANSHAHR","PATHANKOT","PATIALA","RUPNAGAR","S.A.S NAGAR","SANGRUR","TARN TARAN","AJMER","ALWAR","BANSWARA","BARAN","BARMER","BHARATPUR","BHILWARA","BIKANER","BUNDI","CHITTORGARH","CHURU","DAUSA","DHOLPUR","DUNGARPUR","GANGANAGAR","HANUMANGARH","JAIPUR","JAISALMER","JALORE","JHALAWAR","JHUNJHUNU","JODHPUR","KARAULI","KOTA","NAGAUR","PALI","PRATAPGARH","RAJSAMAND","SAWAI MADHOPUR","SIKAR","SIROHI","TONK","UDAIPUR","EAST DISTRICT","NORTH DISTRICT","SOUTH DISTRICT","WEST DISTRICT","ARIYALUR","COIMBATORE","CUDDALORE","DHARMAPURI","DINDIGUL","ERODE","KANCHIPURAM","KANNIYAKUMARI","KARUR","KRISHNAGIRI","MADURAI","NAGAPATTINAM","NAMAKKAL","PERAMBALUR","PUDUKKOTTAI","RAMANATHAPURAM","SALEM","SIVAGANGA","THANJAVUR","THE NILGIRIS","THENI","THIRUVALLUR","THIRUVARUR","TIRUCHIRAPPALLI","TIRUNELVELI","TIRUPPUR","TIRUVANNAMALAI","TUTICORIN","VELLORE","VILLUPURAM","VIRUDHUNAGAR","ADILABAD","HYDERABAD","KARIMNAGAR","KHAMMAM","MAHBUBNAGAR","MEDAK","NALGONDA","NIZAMABAD","RANGAREDDI","WARANGAL","DHALAI","GOMATI","KHOWAI","NORTH TRIPURA","SEPAHIJALA","SOUTH TRIPURA","UNAKOTI","WEST TRIPURA","AGRA","ALIGARH","ALLAHABAD","AMBEDKAR NAGAR","AMETHI","AMROHA","AURAIYA","AZAMGARH","BAGHPAT","BAHRAICH","BALLIA","BANDA","BARABANKI","BAREILLY","BASTI","BIJNOR","BUDAUN","BULANDSHAHR","CHANDAULI","CHITRAKOOT","DEORIA","ETAH","ETAWAH","FAIZABAD","FARRUKHABAD","FATEHPUR","FIROZABAD","GAUTAM BUDDHA NAGAR","GHAZIABAD","GHAZIPUR","GONDA","GORAKHPUR","HAPUR","HARDOI","HATHRAS","JALAUN","JAUNPUR","JHANSI","KANNAUJ","KANPUR DEHAT","KANPUR NAGAR","KASGANJ","KAUSHAMBI","KHERI","KUSHI NAGAR","LALITPUR","LUCKNOW","MAHARAJGANJ","MAHOBA","MAINPURI","MATHURA","MAU","MEERUT","MIRZAPUR","MORADABAD","MUZAFFARNAGAR","PILIBHIT","RAE BARELI","RAMPUR","SAHARANPUR","SAMBHAL","SANT KABEER NAGAR","SANT RAVIDAS NAGAR","SHAHJAHANPUR","SHAMLI","SHRAVASTI","SIDDHARTH NAGAR","SITAPUR","SONBHADRA","SULTANPUR","UNNAO","VARANASI","ALMORA","BAGESHWAR","CHAMOLI","CHAMPAWAT","DEHRADUN","HARIDWAR","NAINITAL","PAURI GARHWAL","PITHORAGARH","RUDRA PRAYAG","TEHRI GARHWAL","UDAM SINGH NAGAR","UTTAR KASHI","24 PARAGANAS NORTH","24 PARAGANAS SOUTH","BANKURA","BARDHAMAN","BIRBHUM","COOCHBEHAR","DARJEELING","DINAJPUR DAKSHIN","DINAJPUR UTTAR","HOOGHLY","HOWRAH","JALPAIGURI","MALDAH","MEDINIPUR EAST","MEDINIPUR WEST","MURSHIDABAD","NADIA","PURULIA",
-            ),
-        )
+        # Input parameters
+        year = st.sidebar.slider('Select Year:', 1990, 2023, 1990)
+        rain_mm = st.sidebar.number_input('Average Rainfall (mm):', 0.0, 5000.0, 1485.0)
+        pesticides = st.sidebar.number_input('Pesticides (tonnes):', 0.0, 1000.0, 121.0)
+        temp = st.sidebar.number_input('Average Temperature:', 0.0, 40.0, 16.37)
 
-        crop_year = 2014
+        # Dropdown for Area
+        area_options = ['India','Albania', 'Algeria', 'Angola', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Belarus', 'Belgium', 'Botswana', 'Brazil', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cameroon','Canada', 'Central African Republic', 'Chile', 'Colombia', 'Croatia','Denmark', 'Dominican Republic', 'Ecuador', 'Egypt', 'El Salvador', 'Eritrea','Estonia', 'Finland', 'France', 'Germany', 'Ghana', 'Greece', 'Guatemala','Guinea', 'Guyana', 'Haiti', 'Honduras', 'Hungary', 'Indonesia', 'Iraq','Ireland', 'Italy', 'Jamaica', 'Japan', 'Kazakhstan', 'Kenya', 'Latvia','Lebanon', 'Lesotho', 'Libya', 'Lithuania', 'Madagascar', 'Malawi', 'Malaysia','Mali', 'Mauritania', 'Mauritius', 'Mexico', 'Montenegro', 'Morocco','Mozambique', 'Namibia', 'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua','Niger', 'Norway', 'Pakistan', 'Papua New Guinea', 'Peru', 'Poland', 'Portugal','Qatar', 'Romania', 'Rwanda', 'Saudi Arabia', 'Senegal', 'Slovenia','South Africa', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden','Switzerland', 'Tajikistan', 'Thailand', 'Tunisia', 'Turkey', 'Uganda','Ukraine', 'United Kingdom', 'Uruguay', 'Zambia', 'Zimbabwe']
+        area = st.sidebar.selectbox('Select Area:', area_options)
 
-        season_select = st.sidebar.selectbox(
-            "Select The Season",
-            ("Kharif", "Whole Year", "Autumn", "Rabi", "Summer", "Winter"),
-        )
+        # Dropdown for Crop
+        crop_options = ['Maize', 'Potatoes', 'Rice, paddy', 'Sorghum', 'Soybeans', 'Wheat', 'Cassava', 'Sweet potatoes', 'Plantains and others', 'Yams']
+        crop = st.sidebar.selectbox('Select Crop:', crop_options)
 
-        # Mapping season names
-        season_mapping = {
-            "Kharif": "Kharif     ",
-            "Whole Year": "Whole Year ",
-            "Autumn": "Autumn     ",
-            "Rabi": "Rabi       ",
-            "Summer": "Summer     ",
-            "Winter": "Winter     "
-        }
-        season_select = season_mapping.get(season_select, "Winter")
+        # Button to trigger prediction
+        if st.sidebar.button('Predict Yield'):
+            result = predict_yield(year, rain_mm, pesticides, temp, area, crop)
+            st.success(f'The predicted yield for {crop} in {area} for the year {year} is {result}')
 
-        crop_selection = st.sidebar.selectbox(
-            "Select Your Crop",
-            ("Arecanut","Other Kharif pulses","Rice","Banana","Cashewnut","Coconut ","Dry ginger","Sugarcane","Sweet potato","Tapioca","Black pepper","Dry chillies","other oilseeds","Turmeric","Maize","Moong(Green Gram)","Urad","Arhar/Tur","Groundnut","Sunflower","Bajra","Castor seed","Cotton(lint)","Horse-gram","Jowar","Korra","Ragi","Tobacco","Gram","Wheat","Masoor","Sesamum","Linseed","Safflower","Onion","other misc. pulses","Samai","Small millets","Coriander","Potato","Other  Rabi pulses","Soyabean","Beans & Mutter(Vegetable)","Bhindi","Brinjal","Citrus Fruit","Cucumber","Grapes","Mango","Orange","other fibres","Other Fresh Fruits","Other Vegetables","Papaya","Pome Fruit","Tomato","Rapeseed &Mustard","Mesta","Cowpea(Lobia)","Lemon","Pome Granet","Sapota","Cabbage","Peas  (vegetable)","Niger seed","Bottle Gourd","Sannhamp","Varagu","Garlic","Ginger","Oilseeds total","Pulses total","Jute","Peas & beans (Pulses)","Blackgram","Paddy","Pineapple","Barley","Khesari","Guar seed","Moth","Other Cereals & Millets","Cond-spcs other","Turnip","Carrot","Redish","Arcanut (Processed)","Atcanut (Raw)","Cashewnut Processed","Cashewnut Raw","Cardamom","Rubber","Bitter Gourd","Drum Stick","Jack Fruit","Snak Guard","Pump Kin","Tea","Coffee","Cauliflower","Other Citrus Fruit","Water Melon","Total foodgrain","Kapas","Colocosia","Lentil","Bean","Jobster","Perilla","Rajmash Kholar","Ricebean (nagadal)","Ash Gourd","Beet Root","Lab-Lab","Ribed Guard","Yam","Apple","Peach","Pear","Plums","Litchi","Ber","Other Dry Fruit","Jute & mesta",
-            ),
-        )
+            # Hide Streamlit style
+            hide_streamlit_style = """
+                    <style>
+                    footer {visibility: hidden;}
+                    </style>
+                    """
+            st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-        area_selection = st.sidebar.text_input(
-            "Enter the Area of Your Field (in square meters)"
-        )
-
-        result = ""
-        if st.button("Predict"):
-            result = yield_prediction(
-                [
-                    state_selection,
-                    district_selection,
-                    crop_year,
-                    season_select,
-                    crop_selection,
-                    area_selection,
-                ]
+            # Footer with team information
+            st.markdown(
+                """<style>footer {visibility: hidden;} footer:after {content:'Capstone Project By Team 21 💥';visibility: visible;display: block;position: relative;#background-color: red;padding: 5px; top: 2px;}</style>""",
+                unsafe_allow_html=True,
             )
-
-        st.success(
-            "The estimated Crop Production (Kg per hectare) is {}".format(
-                result)
-        )
-
-    # Hide Streamlit style
-    hide_streamlit_style = """
-            <style>
-            footer {visibility: hidden;}
-            </style>
-            """
-    st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-
-    # Footer with team information
-    st.markdown(
-        """<style>footer {visibility: hidden;} footer:after {content:'Capstone Project By Team 21 💥';visibility: visible;display: block;position: relative;#background-color: red;padding: 5px; top: 2px;}</style>""",
-        unsafe_allow_html=True,
-    )
 
 if __name__ == "__main__":
     main()
