@@ -28,7 +28,7 @@ AgriSense Smart Harvest is a web-based application that utilizes Artificial Inte
     pip install -r requirements.txt
     ```
 
-4. Extract the `./assets/classifier.rar` file
+4. Extract the `./models/classifier.rar` file
 
 5. Run the application
     ```bash
