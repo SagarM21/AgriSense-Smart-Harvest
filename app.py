@@ -47,30 +47,51 @@ def import_and_predict(image_data, model):
     return result
 
 # Function to predict crop yield
+# def yield_prediction(input_list_yield):
+#     one_hot_encoder = {}
+#     with open("dtr.pkl", "rb") as ohe_pickle:
+#         one_hot_encoder = pickle.load(ohe_pickle)
+
+#     with open("./models/classifier/classifier.pkl", "rb") as classifier_pickle:
+#         model = pickle.load(classifier_pickle)
+
+#     with open("preprocessor.pkl", "rb") as encodings_pickle:
+#         encodings = pickle.load(encodings_pickle)
+
+#     input_array_df = pd.DataFrame(input_list_yield).T
+#     columns_to_drop = [0, 1]
+#     one_hot_encoded_feature = encodings.transform(input_array_df[columns_to_drop]).toarray()
+#     df_encoded = pd.DataFrame(one_hot_encoded_feature)
+#     df_final = pd.concat([df_encoded, input_array_df.drop(columns_to_drop, axis=1)], axis=1)
+
+#     X = df_final.values
+#     X[0, 680] = encodings[0][X[0, 680]]
+#     X[0, 681] = encodings[1][X[0, 681]]
+
+#     prediction = model.predict(X.reshape(1, -1))
+#     prediction = float(prediction)
+#     return prediction
+
 def yield_prediction(input_list_yield):
-    one_hot_encoder = {}
-    with open("./models/OneHotEncoder.pkl", "rb") as ohe_pickle:
-        one_hot_encoder = pickle.load(ohe_pickle)
+    # Load the model and preprocessor
+    with open('randomForest.pkl', "rb") as model_pickle:
+        model = pickle.load(model_pickle)
 
-    with open("./models/classifier.pkl", "rb") as classifier_pickle:
-        model = pickle.load(classifier_pickle)
+    # Load the preprocessor
+    with open('preprocessor22.pkl', "rb") as preprocessor_pickle:
+        preprocessor = pickle.load(preprocessor_pickle)
 
-    with open("./models/list_mapping.pkl", "rb") as encodings_pickle:
-        encodings = pickle.load(encodings_pickle)
+    # Prepare the input data
+    input_df = pd.DataFrame([input_list_yield], columns=['State_Name', 'District_Name', 'Crop_Year', 'Season', 'Crop', 'Area'])
+    input_df['Season'] = input_df['Season'].str.strip()  # Remove leading and trailing whitespaces
 
-    input_array_df = pd.DataFrame(input_list_yield).T
-    columns_to_drop = [0, 1]
-    one_hot_encoded_feature = one_hot_encoder.transform(input_array_df[columns_to_drop]).toarray()
-    df_encoded = pd.DataFrame(one_hot_encoded_feature)
-    df_final = pd.concat([df_encoded, input_array_df.drop(columns_to_drop, axis=1)], axis=1)
+    # Apply the preprocessor
+    input_preprocessed = preprocessor.transform(input_df)
 
-    X = df_final.values
-    X[0, 680] = encodings[0][X[0, 680]]
-    X[0, 681] = encodings[1][X[0, 681]]
+    # Predict the yield
+    prediction = model.predict(input_preprocessed)
 
-    prediction = model.predict(X.reshape(1, -1))
-    prediction = float(prediction)
-    return prediction
+    return float(prediction[0])
 
 # Function to convert image to base64 bytes
 def img_to_bytes(img_path):
